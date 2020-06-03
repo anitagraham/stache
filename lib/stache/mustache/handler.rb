@@ -11,7 +11,7 @@ module Stache
       end
 
       # Thanks to Mustache::Rails3 for getting us most of the way home here
-      def compile(template)
+      def compile(template, source)
         #
         # get a custom Mustache, or the default Stache::Mustache::View
         mustache_class = mustache_class_from_template(template)
@@ -27,7 +27,6 @@ module Stache
 
         # Caching key
         template_id = "#{template.identifier.to_s}#{template.updated_at.to_i}"
-
         # Return a string that will be eval'd in the context of the ActionView, ugly, but it works.
         <<-MUSTACHE
           mustache = ::#{mustache_class}.new
@@ -56,7 +55,6 @@ module Stache
           mustache.singleton_class.class_eval do
             attr_reader *variables.map { |name| name.to_s.sub(/^@/, '').to_sym }
           end
-
           # Try to get template from cache, otherwise use template source
           template_cached   = ::Stache.template_cache.read(:'#{template_id}', :namespace => :templates, :raw => true)
           mustache.template = template_cached || Stache::Mustache::CachedTemplate.new(
@@ -67,11 +65,9 @@ module Stache
             else
               '#{template.source.gsub(/'/, "\\\\'")}'
             end
-          )
-
+          )         
           # Render - this will also compile the template
           compiled = mustache.render.html_safe
-
           # Store the now compiled template
           unless template_cached
             ::Stache.template_cache.write(:'#{template_id}', mustache.template, :namespace => :templates, :raw => true)
@@ -82,8 +78,8 @@ module Stache
       end
 
       # In Rails 3.1+, #call takes the place of #compile
-      def self.call(template)
-        new.compile(template)
+      def self.call(template, source)
+        new.compile(template, source)
       end
 
       # suss out a constant name for the given template
